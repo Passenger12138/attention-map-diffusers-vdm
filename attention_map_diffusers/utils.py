@@ -6,10 +6,11 @@ from torchvision.transforms import ToPILImage
 
 from diffusers.models import Transformer2DModel
 from diffusers.models.unets import UNet2DConditionModel
-from diffusers.models.transformers import SD3Transformer2DModel, FluxTransformer2DModel
+from diffusers.models.transformers import SD3Transformer2DModel, FluxTransformer2DModel, SanaTransformer2DModel
+from diffusers.models.transformers.sana_transformer import SanaTransformerBlock
 from diffusers.models.transformers.transformer_flux import FluxTransformerBlock
 from diffusers.models.attention import BasicTransformerBlock, JointTransformerBlock
-from diffusers import FluxPipeline
+from diffusers import FluxPipeline, SanaPipeline
 from diffusers.models.attention_processor import (
     AttnProcessor,
     AttnProcessor2_0,
@@ -46,6 +47,7 @@ def register_cross_attention_hook(model, hook_function, target_name):
             module.processor.store_attn_map = True
         elif isinstance(module.processor, AttnProcessor2_0):
             module.processor.store_attn_map = True
+            print('registered at {name}')
         elif isinstance(module.processor, LoRAAttnProcessor):
             module.processor.store_attn_map = True
         elif isinstance(module.processor, LoRAAttnProcessor2_0):
@@ -73,6 +75,20 @@ def replace_call_method_for_unet(model):
             layer.forward = BasicTransformerBlockForward.__get__(layer, BasicTransformerBlock)
         
         replace_call_method_for_unet(layer)
+    
+    return model
+
+
+def replace_call_method_for_sana(model):
+    if model.__class__.__name__ == 'SanaTransformer2DModel':
+        model.forward = SanaTransformer2DModelForward.__get__(model, SanaTransformer2DModel)
+
+    for name, layer in model.named_children():
+        
+        if layer.__class__.__name__ == 'SanaTransformerBlock':
+            layer.forward = SanaTransformerBlockForward.__get__(layer, SanaTransformerBlock)
+        
+        replace_call_method_for_sana(layer)
     
     return model
 
@@ -121,6 +137,11 @@ def init_pipeline(pipeline):
             FluxPipeline.__call__ = FluxPipeline_call
             pipeline.transformer = register_cross_attention_hook(pipeline.transformer, hook_function, 'attn')
             pipeline.transformer = replace_call_method_for_flux(pipeline.transformer)
+
+        elif pipeline.transformer.__class__.__name__ == 'SanaTransformer2DModel':
+            SanaPipeline.__call__ == SanaPipeline_call
+            pipeline.transformer = register_cross_attention_hook(pipeline.transformer, hook_function, 'attn2')
+            pipeline.transformer = replace_call_method_for_sana(pipeline.transformer)
 
     else:
         if pipeline.unet.__class__.__name__ == 'UNet2DConditionModel':
