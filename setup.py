@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="attention_map_diffusers",
-    version="0.1.2",
+    version="0.1.3",
     author="wooyeolbaek",
     author_email="100wooyeol@gmail.com",
     description="attention map for diffusers",
@@ -22,5 +22,7 @@ setup(
         "transformers",
         "einops",
         "torchvision",
+        "protobuf",
+        "sentencepiece",
     ],
 )
