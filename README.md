@@ -9,9 +9,11 @@ This repository is for extracting and visualizing cross attention maps, based on
 For errors reports or feature requests, feel free to raise an issue.
 
 ## Update Log.
+[2024-12-22] It is now compatible with _"Stable Diffusion 3.5"_, _"Flux-dev"_ and _"Flux-schnell"_! (“Sana" will be the focus of the next update.)
+
 [2024-12-17] Refactor and add setup.py
 
-[2024-11-12] _Stable Diffusion 3_ is compatible and supports _batch operations_! (Flux and Stable Diffusion 3.5 is not compatible yet.)
+[2024-11-12] _"Stable Diffusion 3"_ is compatible and supports _batch operations_! (Flux and "Stable Diffusion 3.5" is not compatible yet.)
 
 [2024-07-04] Added features for _saving attention maps based on timesteps and layers_.
 
@@ -19,6 +21,9 @@ For errors reports or feature requests, feel free to raise an issue.
 ## Compatible models.
 <!-- Compatible with various models, including both UNet/DiT based models listed below. -->
 Compatible with various models listed below.
+- [black-forest-labs/FLUX.1-schnell](https://huggingface.co/black-forest-labs/FLUX.1-schnell)
+- [black-forest-labs/FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev)
+- [stabilityai/stable-diffusion-3.5-medium](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium)
 - [stabilityai/stable-diffusion-3-medium-diffusers](https://huggingface.co/stabilityai/stable-diffusion-3-medium-diffusers)
 - [stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0)
 - [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base)
