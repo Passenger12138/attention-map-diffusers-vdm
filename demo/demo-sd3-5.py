@@ -32,5 +32,5 @@ for batch, image in enumerate(images):
     image.save(f'{batch}-sd3-5.png')
 
 ##### 2. Process and Save attention map #####
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-sd3-4', unconditional=True)
+save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-sd3-5', unconditional=True)
 #############################################
