@@ -46,7 +46,6 @@ def register_cross_attention_hook(model, hook_function, target_name):
             module.processor.store_attn_map = True
         elif isinstance(module.processor, AttnProcessor2_0):
             module.processor.store_attn_map = True
-            print('registered at {name}')
         elif isinstance(module.processor, LoRAAttnProcessor):
             module.processor.store_attn_map = True
         elif isinstance(module.processor, LoRAAttnProcessor2_0):

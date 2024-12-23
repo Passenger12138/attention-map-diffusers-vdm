@@ -11,7 +11,7 @@ pipe = DiffusionPipeline.from_pretrained(
     "stabilityai/stable-diffusion-2-1",
     torch_dtype=torch.float16,
 )
-pipe = pipe.to("cuda")
+pipe = pipe.to("mps")
 
 ##### 1. Replace modules and Register hook #####
 pipe = init_pipeline(pipe)
@@ -31,5 +31,5 @@ for batch, image in enumerate(images):
     image.save(f'{batch}-sd2-1.png')
 
 ##### 2. Process and Save attention map #####
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps', unconditional=True)
+save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-sd2-1', unconditional=True)
 #############################################

@@ -38,5 +38,5 @@ for batch, image in enumerate(images):
     image.save(f'{batch}-sana.png')
 
 ##### 2. Process and Save attention map #####
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps', unconditional=True)
+save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-sana', unconditional=True)
 #############################################
