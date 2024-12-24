@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="attention_map_diffusers",
-    version="0.1.4",
+    version="0.1.5",
     author="wooyeolbaek",
     author_email="100wooyeol@gmail.com",
     description="attention map for diffusers",
