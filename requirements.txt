@@ -1,7 +1,7 @@
-diffusers
+diffusers>=0.29.0
 accelerate
 transformers
-sentencepiece
-protobuf
 einops
 torchvision
+protobuf
+sentencepiece

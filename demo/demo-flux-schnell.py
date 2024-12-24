@@ -33,5 +33,6 @@ for batch, image in enumerate(images):
     image.save(f'{batch}-flux-schnell.png')
 
 ##### 2. Process and Save attention map #####
+# set unconditional to False for flux
 save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-flux-schnell', unconditional=False)
 #############################################

@@ -4,12 +4,6 @@ import torch
 import torch.nn.functional as F
 from torchvision.transforms import ToPILImage
 
-from diffusers.models import Transformer2DModel
-from diffusers.models.unets import UNet2DConditionModel
-from diffusers.models.transformers import SD3Transformer2DModel, FluxTransformer2DModel
-from diffusers.models.transformers.transformer_flux import FluxTransformerBlock
-from diffusers.models.attention import BasicTransformerBlock, JointTransformerBlock
-from diffusers import FluxPipeline
 from diffusers.models.attention_processor import (
     AttnProcessor,
     AttnProcessor2_0,
@@ -62,14 +56,17 @@ def register_cross_attention_hook(model, hook_function, target_name):
 
 def replace_call_method_for_unet(model):
     if model.__class__.__name__ == 'UNet2DConditionModel':
+        from diffusers.models.unets import UNet2DConditionModel
         model.forward = UNet2DConditionModelForward.__get__(model, UNet2DConditionModel)
 
     for name, layer in model.named_children():
         
         if layer.__class__.__name__ == 'Transformer2DModel':
+            from diffusers.models import Transformer2DModel
             layer.forward = Transformer2DModelForward.__get__(layer, Transformer2DModel)
         
         elif layer.__class__.__name__ == 'BasicTransformerBlock':
+            from diffusers.models.attention import BasicTransformerBlock
             layer.forward = BasicTransformerBlockForward.__get__(layer, BasicTransformerBlock)
         
         replace_call_method_for_unet(layer)
@@ -96,11 +93,13 @@ def replace_call_method_for_unet(model):
 
 def replace_call_method_for_sd3(model):
     if model.__class__.__name__ == 'SD3Transformer2DModel':
+        from diffusers.models.transformers import SD3Transformer2DModel
         model.forward = SD3Transformer2DModelForward.__get__(model, SD3Transformer2DModel)
 
     for name, layer in model.named_children():
         
         if layer.__class__.__name__ == 'JointTransformerBlock':
+            from diffusers.models.attention import JointTransformerBlock
             layer.forward = JointTransformerBlockForward.__get__(layer, JointTransformerBlock)
         
         replace_call_method_for_sd3(layer)
@@ -110,11 +109,13 @@ def replace_call_method_for_sd3(model):
 
 def replace_call_method_for_flux(model):
     if model.__class__.__name__ == 'FluxTransformer2DModel':
+        from diffusers.models.transformers import FluxTransformer2DModel
         model.forward = FluxTransformer2DModelForward.__get__(model, FluxTransformer2DModel)
 
     for name, layer in model.named_children():
         
         if layer.__class__.__name__ == 'FluxTransformerBlock':
+            from diffusers.models.transformers.transformer_flux import FluxTransformerBlock
             layer.forward = FluxTransformerBlockForward.__get__(layer, FluxTransformerBlock)
         
         replace_call_method_for_flux(layer)
@@ -134,6 +135,7 @@ def init_pipeline(pipeline):
             pipeline.transformer = replace_call_method_for_sd3(pipeline.transformer)
         
         elif pipeline.transformer.__class__.__name__ == 'FluxTransformer2DModel':
+            from diffusers import FluxPipeline
             FluxAttnProcessor2_0.__call__ = flux_attn_call2_0
             FluxPipeline.__call__ = FluxPipeline_call
             pipeline.transformer = register_cross_attention_hook(pipeline.transformer, hook_function, 'attn')
@@ -155,16 +157,38 @@ def init_pipeline(pipeline):
     return pipeline
 
 
+def process_token(token, startofword):
+    if '</w>' in token:
+        token = token.replace('</w>', '')
+        if startofword:
+            token = '<' + token + '>'
+        else:
+            token = '-' + token + '>'
+            startofword = True
+    elif token not in ['<|startoftext|>', '<|endoftext|>']:
+        if startofword:
+            token = '<' + token + '-'
+            startofword = False
+        else:
+            token = '-' + token + '-'
+    return token, startofword
+
+
+def save_attention_image(attn_map, tokens, batch_dir, to_pil):
+    startofword = True
+    for i, (token, a) in enumerate(zip(tokens, attn_map[:len(tokens)])):
+        token, startofword = process_token(token, startofword)
+        to_pil(a.to(torch.float32)).save(os.path.join(batch_dir, f'{i}-{token}.png'))
+
+
 def save_attention_maps(attn_maps, tokenizer, prompts, base_dir='attn_maps', unconditional=True):
     to_pil = ToPILImage()
     
     token_ids = tokenizer(prompts)['input_ids']
-    total_tokens = []
-    for token_id in token_ids:
-        total_tokens.append(tokenizer.convert_ids_to_tokens(token_id))
+    token_ids = token_ids if token_ids and isinstance(token_ids[0], list) else [token_ids]
+    total_tokens = [tokenizer.convert_ids_to_tokens(token_id) for token_id in token_ids]
     
-    if not os.path.exists(base_dir):
-        os.mkdir(base_dir)
+    os.makedirs(base_dir, exist_ok=True)
     
     total_attn_map = list(list(attn_maps.values())[0].values())[0].sum(1)
     if unconditional:
@@ -176,17 +200,13 @@ def save_attention_maps(attn_maps, tokenizer, prompts, base_dir='attn_maps', unc
     
     for timestep, layers in attn_maps.items():
         timestep_dir = os.path.join(base_dir, f'{timestep}')
-        if not os.path.exists(timestep_dir):
-            os.mkdir(timestep_dir)
+        os.makedirs(timestep_dir, exist_ok=True)
         
         for layer, attn_map in layers.items():
             layer_dir = os.path.join(timestep_dir, f'{layer}')
-            if not os.path.exists(layer_dir):
-                os.mkdir(layer_dir)
+            os.makedirs(layer_dir, exist_ok=True)
             
-            attn_map = attn_map.sum(1).squeeze(1)
-            attn_map = attn_map.permute(0, 3, 1, 2)
-            
+            attn_map = attn_map.sum(1).squeeze(1).permute(0, 3, 1, 2)
             if unconditional:
                 attn_map = attn_map.chunk(2)[1]
             
@@ -196,49 +216,11 @@ def save_attention_maps(attn_maps, tokenizer, prompts, base_dir='attn_maps', unc
             
             for batch, (tokens, attn) in enumerate(zip(total_tokens, attn_map)):
                 batch_dir = os.path.join(layer_dir, f'batch-{batch}')
-                if not os.path.exists(batch_dir):
-                    os.mkdir(batch_dir)
-                
-                startofword = True
-                for i, (token, a) in enumerate(zip(tokens, attn[:len(tokens)])):
-                    if '</w>' in token:
-                        token = token.replace('</w>', '')
-                        if startofword:
-                            token = '<' + token + '>'
-                        else:
-                            token = '-' + token + '>'
-                            startofword = True
-
-                    elif token != '<|startoftext|>' and token != '<|endoftext|>':
-                        if startofword:
-                            token = '<' + token + '-'
-                            startofword = False
-                        else:
-                            token = '-' + token + '-'
-                    
-                    to_pil(a.to(torch.float32)).save(os.path.join(batch_dir, f'{i}-{token}.png'))
+                os.makedirs(batch_dir, exist_ok=True)
+                save_attention_image(attn, tokens, batch_dir, to_pil)
     
     total_attn_map /= total_attn_map_number
     for batch, (attn_map, tokens) in enumerate(zip(total_attn_map, total_tokens)):
         batch_dir = os.path.join(base_dir, f'batch-{batch}')
-        if not os.path.exists(batch_dir):
-            os.mkdir(batch_dir)
-        
-        startofword = True
-        for i, (token, a) in enumerate(zip(tokens, attn_map[:len(tokens)])):
-            if '</w>' in token:
-                token = token.replace('</w>', '')
-                if startofword:
-                    token = '<' + token + '>'
-                else:
-                    token = '-' + token + '>'
-                    startofword = True
-
-            elif token != '<|startoftext|>' and token != '<|endoftext|>':
-                if startofword:
-                    token = '<' + token + '-'
-                    startofword = False
-                else:
-                    token = '-' + token + '-'
-            
-            to_pil(a.to(torch.float32)).save(os.path.join(batch_dir, f'{i}-{token}.png'))
+        os.makedirs(batch_dir, exist_ok=True)
+        save_attention_image(attn_map, tokens, batch_dir, to_pil)

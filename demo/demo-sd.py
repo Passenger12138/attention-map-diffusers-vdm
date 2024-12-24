@@ -11,7 +11,7 @@ pipe = DiffusionPipeline.from_pretrained(
     "stabilityai/stable-diffusion-2-1",
     torch_dtype=torch.float16,
 )
-pipe = pipe.to("mps")
+pipe = pipe.to("cuda")
 
 ##### 1. Replace modules and Register hook #####
 pipe = init_pipeline(pipe)
