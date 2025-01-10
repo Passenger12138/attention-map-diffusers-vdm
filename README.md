@@ -1,363 +1,165 @@
-# Cross Attention Map Visualization
+Here's the refined version of your README with clearer structure, improved wording, and consistent formatting:
 
-[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/We-Want-GPU/diffusers-cross-attention-map-SDXL-t2i)
+---
 
-Thanks to HuggingFace [Diffusers](https://github.com/huggingface/diffusers) team for the GPU sponsorship!
+# 🚀 Attention Map Visualization for Diffusers-Based Video Generation Models
 
-This repository is for extracting and visualizing cross attention maps, based on the latest [Diffusers](https://github.com/huggingface/diffusers) code (`v0.32.0`).
+This project extends the open-source [attention-map-diffusers](https://github.com/wooyeolBaek/attention-map-diffusers) and builds on ideas introduced in the paper *"DiTCtrl: Exploring Attention Control in Multi-Modal Diffusion Transformer for Tuning-Free Multi-Prompt Longer Video Generation"*. The goal is to visualize attention maps for video generation models based on the Diffusers framework, specifically focusing on **CogVideoX** models.
 
-For errors reports or feature requests, feel free to raise an issue.
+## 🌟 Key Features
+- Visualizes attention maps for video generation tasks.
+- Divides attention maps into three categories:
+  - **Text-to-Text Attention Map**
+  - **Text-to-Video Attention Map**
+  - **Video-to-Video Attention Map**
+- Supports **CogVideoX v1** model for text-to-video attention map visualization.
 
-## Update Log.
-[2024-12-22] It is now compatible with _"Stable Diffusion 3.5"_, _"Flux-dev"_ and _"Flux-schnell"_! (“Sana" will be the focus of the next update.)
+## 📦 Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/your-project.git
+   cd your-project
+   ```
+2. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-[2024-12-17] Refactor and add setup.py
+## 🛠️ Usage
+To run the project and visualize the attention maps, use the following script:
 
-[2024-11-12] _"Stable Diffusion 3"_ is compatible and supports _batch operations_! (Flux and "Stable Diffusion 3.5" is not compatible yet.)
+```python
+import os
+import torch
+from diffusers import (
+    CogVideoXPipeline,
+    CogVideoXDPMScheduler
+)
+from attention_map_diffusers import (
+    attn_maps,
+    init_pipeline,
+    save_vdm_attention_maps
+)
+from diffusers.utils import export_to_video
 
-[2024-07-04] Added features for _saving attention maps based on timesteps and layers_.
+# Define paths and parameters
+result_path = './results/cogvideox-t2v/'
+os.makedirs(result_path, exist_ok=True)
+model_path = "/maindata/data/shared/public/haobang.geng/haobang-huggingface/CogVideoX-2b"
+guidance_scale = 6.0
+seed = 43
+output_path = os.path.join(result_path, 'output.mp4')
 
+# Load the model
+pipe = CogVideoXPipeline.from_pretrained(model_path, torch_dtype=torch.bfloat16)
+pipe.scheduler = CogVideoXDPMScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
+pipe.enable_sequential_cpu_offload()
+pipe = init_pipeline(pipe)
 
-## Compatible models.
-<!-- Compatible with various models, including both UNet/DiT based models listed below. -->
-Compatible with various models listed below.
-- [black-forest-labs/FLUX.1-schnell](https://huggingface.co/black-forest-labs/FLUX.1-schnell)
-- [black-forest-labs/FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev)
-- [stabilityai/stable-diffusion-3.5-medium](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium)
-- [stabilityai/stable-diffusion-3-medium-diffusers](https://huggingface.co/stabilityai/stable-diffusion-3-medium-diffusers)
-- [stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0)
-- [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base)
-- ...
-
-<!-- - [sdxl-turbo](https://huggingface.co/stabilityai/sdxl-turbo) -->
-<!-- - [black-forest-labs/FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) -->
-
-
-## Example.
-
-
-<div style="text-align: center;">
-    <img src="./assets/sd3.png" alt="Image 1" width="400" height="400">
-    <img src="./assets/4--bara>.png" alt="Image 2" width="400" height="400">
-</div>
-
-
-
-<details>
-<summary>cap-</summary>
-<div markdown="1">
-
-<div style="text-align: center;">
-    <img src="./assets/sd3.png" alt="Image 1" width="400" height="400">
-    <img src="./assets/2-<cap-.png" alt="<cap-" width="400" height="400">
-</div>
-
-</div>
-</details>
-
-
-<details>
-<summary>-y-</summary>
-<div markdown="1">
-
-<div style="text-align: center;">
-    <img src="./assets/sd3.png" alt="Image 1" width="400" height="400">
-    <img src="./assets/3--y-.png" alt="-y-" width="400" height="400">
-</div>
-
-</div>
-</details>
+# Define the prompt
+prompt = "A street artist, clad in a worn-out denim jacket and a colorful bandana, stands before a vast concrete wall in the heart, holding a can of spray paint, spray-painting a colorful bird on a mottled wall."
 
 
-<details>
-<summary>-bara</summary>
-<div markdown="1">
+# Generate video
+video_generate = pipe(
+    prompt=prompt,
+    num_videos_per_prompt=1,
+    num_inference_steps=50,
+    num_frames=49,
+    guidance_scale=guidance_scale,
+    generator=torch.Generator().manual_seed(seed),
+    height=480,
+    width=720,
+).frames[0]
 
-<div style="text-align: center;">
-    <img src="./assets/sd3.png" alt="Image 1" width="400" height="400">
-    <img src="./assets/4--bara>.png" alt="-bara>" width="400" height="400">
-</div>
+# Save the generated video
+export_to_video(video_generate, output_path)
 
-</div>
-</details>
+# Save attention maps
+attn_map_dir = os.path.join(result_path, 'attn_maps')
+save_vdm_attention_maps(attn_maps, pipe.tokenizer, prompt, video_generate, output_dir=attn_map_dir, unconditional=True)
+```
 
-
-<details>
-<summary>hello</summary>
-<div markdown="1">
-
-<div style="text-align: center;">
-    <img src="./assets/sd3.png" alt="Image 1" width="400" height="400">
-    <img src="./assets/10-<hello>.png" alt="<hello>" width="400" height="400">
-</div>
-
-</div>
-</details>
-
-
-<details>
-<summary>world</summary>
-<div markdown="1">
-
-<div style="text-align: center;">
-    <img src="./assets/sd3.png" alt="Image 1" width="400" height="400">
-    <img src="./assets/11-<world>.png" alt="<world>>" width="400" height="400">
-</div>
-
-</div>
-</details>
-
-
-
-## demo
+### ▶️ Command to Start
+Run the script with the following command:
 ```bash
-git clone https://github.com/wooyeolBaek/attention-map-diffusers.git
-cd attention-map-diffusers
-pip install -e .
-```
-or
-```bash
-pip install attention_map_diffusers
+python visual-cogvideox-attention.py
 ```
 
-### Flux-dev
-```python
-import torch
-from diffusers import FluxPipeline
-from attention_map_diffusers import (
-    attn_maps,
-    init_pipeline,
-    save_attention_maps
-)
+---
 
-pipe = FluxPipeline.from_pretrained(
-    "black-forest-labs/FLUX.1-dev",
-    torch_dtype=torch.bfloat16
-)
-# pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
-pipe.to('cuda')
+## 📊 Results
 
-##### 1. Replace modules and Register hook #####
-pipe = init_pipeline(pipe)
-################################################
+Below are examples of attention maps generated by the **CogVideo5b** model.
 
-# recommend not using batch operations for sd3, as cpu memory could be exceeded.
-prompts = [
-    # "A photo of a puppy wearing a hat.",
-    "A capybara holding a sign that reads Hello World.",
-]
+### Prompt:
+"A street artist, clad in a worn-out denim jacket and a colorful bandana, stands before a vast concrete wall in the heart of the city, holding a can of spray paint, spray-painting a colorful bird on a mottled wall."
 
-images = pipe(
-    prompts,
-    num_inference_steps=15,
-    guidance_scale=4.5,
-).images
+#### Video:
+<video width="320" controls>
+  <source src="./asserts/output.mp4" type="video/mp4">
+</video>
 
-for batch, image in enumerate(images):
-    image.save(f'{batch}-flux-dev.png')
+### 🎥 Text-to-Video Attention Maps
 
-##### 2. Process and Save attention map #####
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-flux-dev', unconditional=False)
-#############################################
-```
+The following videos represent the attention maps for specific words in the prompt, generated by the **CogVideo5b** model:
 
-### Flux-schnell
-```python
-import torch
-from diffusers import FluxPipeline
-from attention_map_diffusers import (
-    attn_maps,
-    init_pipeline,
-    save_attention_maps
-)
+- **Word: "jacket"**
+  <video width="320" controls>
+    <source src="./asserts/{token15-▁jacket_}_t2vcrossattention_video.mp4" type="video/mp4">
+  </video>
 
-pipe = FluxPipeline.from_pretrained(
-    "black-forest-labs/FLUX.1-schnell",
-    torch_dtype=torch.bfloat16
-)
-# pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
-pipe.to('cuda')
+- **Word: "paint"**
+  <video width="320" controls>
+    <source src="./asserts/{token41-▁paint_}_t2vcrossattention_video.mp4" type="video/mp4">
+  </video>
 
-##### 1. Replace modules and Register hook #####
-pipe = init_pipeline(pipe)
-################################################
+- **Word: "bird"**
+  <video width="320" controls>
+    <source src="./asserts/{token51-▁bird_}_t2vcrossattention_video.mp4" type="video/mp4">
+  </video>
 
-# recommend not using batch operations for sd3, as cpu memory could be exceeded.
-prompts = [
-    # "A photo of a puppy wearing a hat.",
-    "A capybara holding a sign that reads Hello World.",
-]
+- **Word: "wall"**
+  <video width="320" controls>
+    <source src="./asserts/{token58-▁wall_}_t2vcrossattention_video.mp4" type="video/mp4">
+  </video>
 
-images = pipe(
-    prompts,
-    num_inference_steps=15,
-    guidance_scale=4.5,
-).images
+### 🎥 Video-to-Video Attention Map
+<img src="./asserts/attention-v2v.png" alt="Video-to-Video Attention Map" width="200"/>
 
-for batch, image in enumerate(images):
-    image.save(f'{batch}-flux-schnell.png')
+### 🎥 Text-to-Text Attention Map
+<img src="./asserts/attention-t2t.png" alt="Text-to-Text Attention Map" width="200"/>
 
-##### 2. Process and Save attention map #####
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-flux-schnell', unconditional=False)
-#############################################
-```
+### 🎥 All Attention Map
+<img src="./asserts/attention-all.png" alt="All Attention Map" width="200"/>
 
-### Stable Diffusion 3.5
-```python
-import torch
-from diffusers import StableDiffusion3Pipeline
-from attention_map_diffusers import (
-    attn_maps,
-    init_pipeline,
-    save_attention_maps
-)
+---
 
-pipe = StableDiffusion3Pipeline.from_pretrained(
-    "stabilityai/stable-diffusion-3.5-medium",
-    torch_dtype=torch.bfloat16
-)
-pipe = pipe.to("cuda")
+## 🙏 Acknowledgments
+- This project is based on [attention-map-diffusers](https://github.com/wooyeolBaek/attention-map-diffusers).
+- The ideas are inspired by the paper *DiTCtrl: Exploring Attention Control in Multi-Modal Diffusion Transformer for Tuning-Free Multi-Prompt Longer Video Generation*.
 
-##### 1. Replace modules and Register hook #####
-pipe = init_pipeline(pipe)
-################################################
+---
 
-# recommend not using batch operations for sd3, as cpu memory could be exceeded.
-prompts = [
-    # "A photo of a puppy wearing a hat.",
-    "A capybara holding a sign that reads Hello World.",
-]
+## 📝 TODO List
 
-images = pipe(
-    prompts,
-    num_inference_steps=15,
-    guidance_scale=4.5,
-).images
+- **Current Support:**
+  - CogVideoX v1 for text-to-video attention map visualization.
 
-for batch, image in enumerate(images):
-    image.save(f'{batch}-sd3-5.png')
+- **Future Work:**
+  - [ ] Support for **CogVideoX v1.5** text-to-video attention map visualization.
+  - [ ] Support for **Hunyuan** text-to-video attention map visualization.
+  - [ ] Support for **CogVideoX** image-to-video attention map visualization.
+  - [ ] Support for **Hunyuan** image-to-video attention map visualization.
 
-##### 2. Process and Save attention map #####
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-sd3-5', unconditional=True)
-#############################################
-```
+---
 
-### Stable Diffusion 3.0
-```python
-import torch
-from diffusers import StableDiffusion3Pipeline
-from attention_map_diffusers import (
-    attn_maps,
-    init_pipeline,
-    save_attention_maps
-)
+## 🤝 Contributing
+Contributions are welcome! Feel free to open issues or submit pull requests to improve the project.
 
+## 📜 License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
 
-pipe = StableDiffusion3Pipeline.from_pretrained(
-    "stabilityai/stable-diffusion-3-medium-diffusers",
-    torch_dtype=torch.bfloat16
-)
-pipe = pipe.to("cuda")
+---
 
-##### 1. Replace modules and Register hook #####
-pipe = init_pipeline(pipe)
-################################################
-
-# recommend not using batch operations for sd3, as cpu memory could be exceeded.
-prompts = [
-    # "A photo of a puppy wearing a hat.",
-    "A capybara holding a sign that reads Hello World.",
-]
-
-images = pipe(
-    prompts,
-    num_inference_steps=15,
-    guidance_scale=4.5,
-).images
-
-for batch, image in enumerate(images):
-    image.save(f'{batch}-sd3.png')
-
-##### 2. Process and Save attention map #####
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps', unconditional=True)
-#############################################
-```
-
-### Stable Diffusion XL
-```python
-import torch
-from diffusers import DiffusionPipeline
-from attention_map_diffusers import (
-    attn_maps,
-    init_pipeline,
-    save_attention_maps
-)
-
-
-pipe = DiffusionPipeline.from_pretrained(
-    "stabilityai/stable-diffusion-xl-base-1.0",
-    torch_dtype=torch.float16,
-)
-pipe = pipe.to("cuda")
-
-##### 1. Replace modules and Register hook #####
-pipe = init_pipeline(pipe)
-################################################
-
-prompts = [
-    "A photo of a puppy wearing a hat.",
-    "A capybara holding a sign that reads Hello World.",
-]
-
-images = pipe(
-    prompts,
-    num_inference_steps=15,
-).images
-
-for batch, image in enumerate(images):
-    image.save(f'{batch}-sdxl.png')
-
-##### 2. Process and Save attention map #####
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps', unconditional=True)
-#############################################
-```
-
-### Stable Diffusion 2.1
-```python
-import torch
-from diffusers import DiffusionPipeline
-from attention_map_diffusers import (
-    attn_maps,
-    init_pipeline,
-    save_attention_maps
-)
-
-
-pipe = DiffusionPipeline.from_pretrained(
-    "stabilityai/stable-diffusion-2-1",
-    torch_dtype=torch.float16,
-)
-pipe = pipe.to("cuda")
-
-##### 1. Replace modules and Register hook #####
-pipe = init_pipeline(pipe)
-################################################
-
-prompts = [
-    "A photo of a puppy wearing a hat.",
-    "A capybara holding a sign that reads Hello World.",
-]
-
-images = pipe(
-    prompts,
-    num_inference_steps=15,
-).images
-
-for batch, image in enumerate(images):
-    image.save(f'{batch}-sd2-1.png')
-
-##### 2. Process and Save attention map #####
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps', unconditional=True)
-#############################################
-
-```
+This version ensures the content is clear and easy to follow while keeping the format clean and professional. The key sections (installation, usage, results, etc.) are well-organized for better readability and understanding.

@@ -11,3 +11,6 @@ demo/**.png
 
 build
 dist
+
+/results/*
+debug.py
