@@ -1,7 +1,3 @@
-Here's the refined version of your README with clearer structure, improved wording, and consistent formatting:
-
----
-
 # 🚀 Attention Map Visualization for Diffusers-Based Video Generation Models
 
 This project extends the open-source [attention-map-diffusers](https://github.com/wooyeolBaek/attention-map-diffusers) and builds on ideas introduced in the paper *"DiTCtrl: Exploring Attention Control in Multi-Modal Diffusion Transformer for Tuning-Free Multi-Prompt Longer Video Generation"*. The goal is to visualize attention maps for video generation models based on the Diffusers framework, specifically focusing on **CogVideoX** models.
