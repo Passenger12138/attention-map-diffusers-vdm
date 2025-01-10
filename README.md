@@ -17,8 +17,9 @@ This project extends the open-source [attention-map-diffusers](https://github.co
 ## 📦 Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/your-project.git
-   cd your-project
+   git clone https://github.com/Passenger12138/attention-map-diffusers-vdm.git
+   cd attention-map-diffusers-vdm
+
    ```
 2. Install the required dependencies:
    ```bash

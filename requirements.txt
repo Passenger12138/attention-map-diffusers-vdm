@@ -1,4 +1,4 @@
-diffusers>=0.33.0
+diffusers>=0.32.0
 accelerate
 transformers
 einops
