@@ -2809,8 +2809,8 @@ def cogvideox_attn_call2_0(
 
 
     if hasattr(self, "store_attn_map"):
-        # TODO:基于https://github.com/THUDM/CogVideo/issues/109来实现简单的attention map计算
-        
+        # TODO:基于https://github.com/THUDM/CogVideo/issues/109
+        # 来实现简单的attention map计算
         
         # # identity matrix在计算attention_map * value的时候 cuda out of memeory
         # guidance scale选择取出只包括文本prompt的query然后分别对不同的head求attention然后求mean。
@@ -2829,7 +2829,7 @@ def cogvideox_attn_call2_0(
         # attention_probs = torch.mean(attention_probs, dim=0)
 
 
-        for i in range(0, query.shape[1],15):
+        for i in range(0, query.shape[1], 15):
             query_attention= query[-1][i:i+15]
             key_attention = key[-1][i:i+15]
             identity_matrix = torch.eye(query_attention.shape[-2], device=query_attention.device, dtype=query_attention.dtype)

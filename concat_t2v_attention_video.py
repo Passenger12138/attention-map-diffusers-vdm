@@ -1,5 +1,5 @@
 import os
-import cv2
+import subprocess
 from collections import defaultdict
 
 def group_images_by_prefix(image_folder):
@@ -26,20 +26,40 @@ def images_to_video(image_folder, grouped_images, output_folder, fps=8):
     os.makedirs(output_folder, exist_ok=True)
     
     for prefix, images in grouped_images.items():
-        frame_array = []
+        # 临时存储图像路径的列表
+        image_paths = []
+        
         for frame_number, filename in images:
             img_path = os.path.join(image_folder, filename)
-            img = cv2.imread(img_path)
-            height, width, layers = img.shape
-            frame_array.append(img)
+            image_paths.append(img_path)
         
-        # 定义视频输出的参数
-        video_filename = os.path.join(output_folder, f'{{{prefix}}}_t2vcrossattention_video.mp4')
-        out = cv2.VideoWriter(video_filename, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+        # 使用 FFmpeg 来编码视频
+        video_filename = os.path.join(output_folder, f'{prefix}_t2vcrossattention_video.mp4')
         
-        for frame in frame_array:
-            out.write(frame)
-        out.release()
+        # 调用 FFmpeg 生成视频
+        create_video_with_ffmpeg(image_paths, video_filename, fps)
+
+def create_video_with_ffmpeg(input_image_paths, output_video_path, fps=8):
+    # 输入的图像文件需要按序列顺序编号，因此使用 'image%d.jpg' 之类的模式
+    # image_pattern = os.path.join(os.path.dirname(input_image_paths[0]), "frame%04d.jpg")
+    image_name_prefix = os.path.basename(input_image_paths[0]).split("frame")[0]
+    image_name = image_name_prefix + "frame%04d.jpg"
+    image_dir = os.path.dirname(input_image_paths[0])
+    image_paths = os.path.join(image_dir,image_name)
+    # import pdb
+    # pdb.set_trace()
+    # 构建 FFmpeg 命令行
+    cmd = [
+        'ffmpeg',
+        '-framerate', str(fps),
+        '-i', image_paths,  # 输入的图像文件序列
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',  # 使用兼容的像素格式
+        output_video_path
+    ]
+    
+    # 执行 FFmpeg 命令
+    subprocess.run(cmd, check=True)
 
 def main():
     image_folder = "./results/cogvideox-t2v/attn_maps/all/t2v-attention"  # 替换为你的图像文件夹路径
