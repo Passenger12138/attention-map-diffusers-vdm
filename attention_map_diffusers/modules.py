@@ -45,6 +45,7 @@ from diffusers.pipelines.cogvideo.pipeline_output import CogVideoXPipelineOutput
 from diffusers.schedulers.scheduling_dpm_cogvideox import CogVideoXDPMScheduler
 
 logger = logging.get_logger(__name__)
+attn_maps = {}
 
 
 
@@ -2788,7 +2789,6 @@ def cogvideox_attn_call2_0(
 
     inner_dim = key.shape[-1]
     head_dim = inner_dim // attn.heads
-
     query = query.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
     key = key.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
     value = value.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
@@ -2814,6 +2814,7 @@ def cogvideox_attn_call2_0(
         
         # # identity matrix在计算attention_map * value的时候 cuda out of memeory
         # guidance scale选择取出只包括文本prompt的query然后分别对不同的head求attention然后求mean。
+
         attention_probs_list = []
         # for i in range(query.shape[1]):
         #     query_attention= query[-1][i]
@@ -2841,46 +2842,16 @@ def cogvideox_attn_call2_0(
         
         attention_probs = torch.mean(torch.cat(attention_probs_list), dim=0)
         
-
-        # 采用分块的方法
-        # attention_probs = chunked_scaled_dot_product_attention(query,key,identity_matrix, chunk_size=4096, attn_mask=attention_mask, dropout_p=0.0, is_causal=False)
-        # attention_probs = attention_probs[-1].sum(0).cpu()
-        # attention_probs= get_attention_map(
-        #     query, key, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
-        # )
-        # attention_probs = attention_probs.cpu()
-
-        
         hidden_states= F.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
         
-        
-        # 测试hook函数
-        # self.attn_map = attention_probs
-        # print(attention_probs.shape)
-
-        # FIXME:
-        # 计算attention_map_all
-        self.attn_map_all = attention_probs
         # TODO:
-        # 计算 text-to-video attention 并重排
-        text_to_video_upper = attention_probs[:text_seq_length, text_seq_length:]
-        text_to_video_lower = attention_probs[text_seq_length:, :text_seq_length].transpose(0, 1)
-        self.attn_map_t2v = (text_to_video_upper + text_to_video_lower) / 2
-        self.attn_map_t2v = rearrange(
-            self.attn_map_t2v,
-            'text_seq_length (frames height width) -> text_seq_length frames height width',
-            frames=frames,
-            height=height,
-            width=width
-        )
-
-        # 提取 text-to-text attention
-        self.attn_map_t2t = attention_probs[:text_seq_length, :text_seq_length] 
 
         # 计算 video-to-video attention 并重排
         video_to_video = attention_probs[text_seq_length:, text_seq_length:]
+
+
         self.attn_map_v2v = rearrange(
             video_to_video,
             '(frames1 height1 width1) (frames2 height2 width2) -> frames1 height1 width1 frames2 height2 width2',
@@ -2891,13 +2862,14 @@ def cogvideox_attn_call2_0(
             height2=height,
             width2=width,
         )
+        self.attn_map_v2v = self.attn_map_v2v.mean(dim=(1, 2, 4, 5))  # 在空间维度求平均
+        
         # 清理不需要的变量避免OOM
-        del text_to_video_upper, text_to_video_lower, video_to_video, attention_probs
+        del video_to_video, attention_probs
 
         # 保存时间步长
         self.timestep = timestep[0].cpu().item()
 
-        
     else:
         hidden_states = F.scaled_dot_product_attention(
         query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False

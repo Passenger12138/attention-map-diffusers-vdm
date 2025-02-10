@@ -1,6 +1,8 @@
 import os
 from PIL import Image
 import cv2
+import matplotlib.pyplot as plt
+import seaborn as sns
 import re
 import torch
 import torch.nn.functional as F
@@ -20,41 +22,22 @@ from .modules import *
 
 
 
-def hook_function(name,output_dir, detach=True):
+def hook_function(name, detach=True):
     def forward_hook(module, input, output):
-        if hasattr(module.processor, "attn_map_all"):
+        if hasattr(module.processor, "attn_map_v2v"):
 
             timestep = module.processor.timestep
-            timestep_dir = os.path.join(output_dir, str(timestep))
-            layer_dir = os.path.join(timestep_dir, str(name))
-            os.makedirs(layer_dir, exist_ok=True)
-            
-            if detach:
-                attn_map_all = module.processor.attn_map_all.cpu()
-                attn_map_t2v = module.processor.attn_map_t2v.cpu()
-                attn_map_t2t = module.processor.attn_map_t2t.cpu()
-                attn_map_v2v = module.processor.attn_map_v2v.cpu()
-            else:
-                attn_map_all = module.processor.attn_map_all
-                attn_map_t2v = module.processor.attn_map_t2v
-                attn_map_t2t = module.processor.attn_map_t2t
-                attn_map_v2v = module.processor.attn_map_v2v
-
-            torch.save(attn_map_all, os.path.join(layer_dir, f'{name}_attn_map_all.pth'))
-            torch.save(attn_map_t2t, os.path.join(layer_dir, f'{name}_attn_map_t2t.pth'))
-            torch.save(attn_map_v2v, os.path.join(layer_dir, f'{name}_attn_map_v2v.pth'))
-            torch.save(attn_map_t2v, os.path.join(layer_dir, f'{name}_attn_map_t2v.pth'))
-            
-            del module.processor.attn_map_all
-            del module.processor.attn_map_t2v
-            del module.processor.attn_map_t2t
+            attn_maps[timestep] = attn_maps.get(timestep, dict())
+            if name not in attn_maps[timestep]:
+                attn_maps[timestep][name] = dict()
+            attn_maps[timestep][name]['v2v'] = module.processor.attn_map_v2v.cpu() if detach \
+                else module.processor.attn_map_v2v
             del module.processor.attn_map_v2v
 
     return forward_hook
 
 
-
-def register_cross_attention_hook(model, hook_function, target_name, output_dir):
+def register_cross_attention_hook(model, hook_function, target_name):
     for name, module in model.named_modules():
         if not name.endswith(target_name):
             continue
@@ -62,7 +45,7 @@ def register_cross_attention_hook(model, hook_function, target_name, output_dir)
         elif isinstance(module.processor, CogVideoXAttnProcessor2_0):
             module.processor.store_attn_map = True
 
-        hook = module.register_forward_hook(hook_function(name, output_dir))
+        hook = module.register_forward_hook(hook_function(name))
     
     return model
 
@@ -83,7 +66,7 @@ def replace_call_method_for_cogvideox(model):
     return model
 
 
-def init_pipeline(pipeline,mid_feature_path):
+def init_pipeline(pipeline):
     AttnProcessor.__call__ = attn_call
     AttnProcessor2_0.__call__ = attn_call2_0
     LoRAAttnProcessor.__call__ = lora_attn_call
@@ -94,7 +77,7 @@ def init_pipeline(pipeline,mid_feature_path):
             from diffusers import CogVideoXPipeline
             CogVideoXAttnProcessor2_0.__call__ = cogvideox_attn_call2_0
             CogVideoXPipeline.__call__ = CogVideoXPipeline_call
-            pipeline.transformer = register_cross_attention_hook(pipeline.transformer, hook_function, 'attn1', mid_feature_path)
+            pipeline.transformer = register_cross_attention_hook(pipeline.transformer, hook_function, 'attn1')
             pipeline.transformer = replace_call_method_for_cogvideox(pipeline.transformer)
 
         # TODO: HUNYUAN VIDEO Dit
@@ -275,9 +258,6 @@ def save_cross_attention_in_image(video_generate, attn_map, tokens, batch_dir):
             output_path =  os.path.join(batch_dir, f'token{i}-{token}_frame{j}.png')
             Image.fromarray((result_img * 1).astype(np.uint8)).save(output_path)
 
-
-
-
 def save_vdm_attention_maps(mid_feature_path, tokenizer, prompts, video_generate, output_dir='attn_maps', video_height=128, video_width=128, video_frame=9):
     to_pil = ToPILImage()
     
@@ -404,3 +384,26 @@ def save_vdm_attention_maps(mid_feature_path, tokenizer, prompts, video_generate
     # 保存整体的t2v cross attention
     save_cross_attention_in_image(video_generate, normalized_total_attn_map_t2v, total_tokens, model_dir)
 
+def average_attn_map(attn_maps):
+    averaged_attn_maps = {}
+    for timestep, modules in attn_maps.items():
+        for name, data in modules.items():
+            if name not in averaged_attn_maps:
+                averaged_attn_maps[name] = []
+            averaged_attn_maps[name].append(data["v2v"])
+    for name in averaged_attn_maps:
+        averaged_attn_maps[name] = torch.stack(averaged_attn_maps[name]).mean(dim=0)
+    return averaged_attn_maps
+
+
+def visualize_v2v_attnmap(attn_map,output_dir,name):
+    plt.figure(figsize=(6, 5))
+    # sns.heatmap(frame_attention.numpy(), annot=True, cmap="viridis", fmt=".2f")
+    sns.heatmap(attn_map.numpy(), annot=False, cmap="viridis")
+    plt.xlabel("Frame Index")
+    plt.ylabel("Frame Index")
+    plt.title("Frame-to-Frame Attention")
+    plt.show()
+    output_path = os.path.join(output_dir,f"module_{name}.png")
+    plt.savefig(output_path)
+    plt.close()
