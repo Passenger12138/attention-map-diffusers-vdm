@@ -66,28 +66,24 @@ def replace_call_method_for_cogvideox(model):
     return model
 
 
-def init_pipeline(pipeline):
-    AttnProcessor.__call__ = attn_call
-    AttnProcessor2_0.__call__ = attn_call2_0
-    LoRAAttnProcessor.__call__ = lora_attn_call
-    LoRAAttnProcessor2_0.__call__ = lora_attn_call2_0
-    if 'transformer' in vars(pipeline).keys():
-
-        if pipeline.transformer.__class__.__name__ == 'CogVideoXTransformer3DModel':
-            from diffusers import CogVideoXPipeline
-            CogVideoXAttnProcessor2_0.__call__ = cogvideox_attn_call2_0
-            CogVideoXPipeline.__call__ = CogVideoXPipeline_call
-            pipeline.transformer = register_cross_attention_hook(pipeline.transformer, hook_function, 'attn1')
-            pipeline.transformer = replace_call_method_for_cogvideox(pipeline.transformer)
-
+def init_pipeline(pipeline,name):
+    if name == "CogVideoXImageToVideoPipeline":
+        from diffusers import CogVideoXImageToVideoPipeline
+        CogVideoXAttnProcessor2_0.__call__ = cogvideox_attn_call2_0
+        CogVideoXImageToVideoPipeline.__call__ = CogVideoXImageToVideoPipeline_call
+        pipeline.transformer = register_cross_attention_hook(pipeline.transformer, hook_function, 'attn1')
+        pipeline.transformer = replace_call_method_for_cogvideox(pipeline.transformer)
+    elif name == "CogVideoXPipeline":
+        from diffusers import CogVideoXPipeline
+        CogVideoXAttnProcessor2_0.__call__ = cogvideox_attn_call2_0
+        CogVideoXPipeline.__call__ = CogVideoXPipeline_call
+        pipeline.transformer = register_cross_attention_hook(pipeline.transformer, hook_function, 'attn1')
+        pipeline.transformer = replace_call_method_for_cogvideox(pipeline.transformer)
         # TODO: HUNYUAN VIDEO Dit
-
     else:
         if pipeline.unet.__class__.__name__ == 'UNet2DConditionModel':
             pipeline.unet = register_cross_attention_hook(pipeline.unet, hook_function, 'attn2')
             pipeline.unet = replace_call_method_for_unet(pipeline.unet)
-
-
     return pipeline
 
 def sanitize_token(token):
@@ -399,7 +395,7 @@ def average_attn_map(attn_maps):
 def visualize_v2v_attnmap(attn_map,output_dir,name):
     plt.figure(figsize=(6, 5))
     # sns.heatmap(frame_attention.numpy(), annot=True, cmap="viridis", fmt=".2f")
-    sns.heatmap(attn_map.numpy(), annot=False, cmap="viridis")
+    sns.heatmap(attn_map.float().numpy(), annot=False, cmap="viridis")
     plt.xlabel("Frame Index")
     plt.ylabel("Frame Index")
     plt.title("Frame-to-Frame Attention")

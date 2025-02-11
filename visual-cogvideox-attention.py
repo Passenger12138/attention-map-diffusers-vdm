@@ -31,14 +31,11 @@ def main():
 
     # 模型路径与数据类型（半精度）
     model_path = "/maindata/data/shared/public/haobang.geng/haobang-huggingface/CogVideoX-5b"
-    dtype = torch.float16
+    dtype = torch.bfloat16
 
     # 输入的文本提示
     prompt = (
-        "A suited astronaut, with the red dust of Mars clinging to their boots, reaches out to shake hands with an alien being, "
-        "their skin a shimmering blue, under the pink-tinged sky of the fourth planet. In the background, a sleek silver rocket, "
-        "a beacon of human ingenuity, stands tall, its engines powered down, as the two representatives of different worlds exchange "
-        "a historic greeting amidst the desolate beauty of the Martian landscape."
+        "A small boy, head bowed and determination etched on his face, sprints through the torrential downpour as lightning crackles and thunder rumbles in the distance. The relentless rain pounds the ground, creating a chaotic dance of water droplets that mirror the dramatic sky's anger. In the far background, the silhouette of a cozy home beckons, a faint beacon of safety and warmth amidst the fierce weather. The scene is one of perseverance and the unyielding spirit of a child braving the elements."
     )
 
     # ========================
@@ -47,10 +44,13 @@ def main():
     pipe = CogVideoXPipeline.from_pretrained(model_path, torch_dtype=dtype)
     # 使用 trailing timestep spacing 的调度器配置
     pipe.scheduler = CogVideoXDPMScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
-    # 启用顺序 CPU offload，降低内存占用
-    pipe.enable_sequential_cpu_offload()
+    
     # 调用自定义的初始化函数（可能包含注入增强模块等操作）
-    pipe = init_pipeline(pipe)
+    pipe = init_pipeline(pipe, "CogVideoXPipeline")
+    # 启用顺序 CPU offload，降低内存占用
+    # pipe.enable_sequential_cpu_offload()
+    # pipe.to("cuda")
+    pipe.enable_model_cpu_offload()
 
     # ========================
     # 4. 视频生成
