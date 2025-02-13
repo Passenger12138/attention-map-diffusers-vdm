@@ -36,12 +36,9 @@ def main():
 
     # 输入的文本提示
     prompt = (
-        "A suited astronaut, with the red dust of Mars clinging to their boots, reaches out to shake hands with an alien being, "
-        "their skin a shimmering blue, under the pink-tinged sky of the fourth planet. In the background, a sleek silver rocket, "
-        "a beacon of human ingenuity, stands tall, its engines powered down, as the two representatives of different worlds exchange "
-        "a historic greeting amidst the desolate beauty of the Martian landscape."
+        "A small boy, head bowed and determination etched on his face, sprints through the torrential downpour as lightning crackles and thunder rumbles in the distance. The relentless rain pounds the ground, creating a chaotic dance of water droplets that mirror the dramatic sky's anger. In the far background, the silhouette of a cozy home beckons, a faint beacon of safety and warmth amidst the fierce weather. The scene is one of perseverance and the unyielding spirit of a child braving the elements."
     )
-    image_path = "/maindata/data/shared/public/haobang.geng/dataset/character-img/imgs2/1.jpeg"
+    image_path = "/maindata/data/shared/public/haobang.geng/code/video-generate/visual-attention-vdm/attention-map-diffusers-vdm/results/check/i2v-test.png"
     # ========================
     # 3. 初始化 CogVideoX 管道
     # ========================
